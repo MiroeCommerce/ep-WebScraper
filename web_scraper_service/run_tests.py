@@ -1,3 +1,17 @@
+"""
+Test runner script for the Web Scraper Service.
+
+Provides unified entry point for running all unittests and coverage
+reporting, with logging via Loguru.
+
+Usage:
+    python run_tests.py [--cov]
+
+Arguments:
+    --cov: If present, runs tests with coverage measurement and generates
+           HTML report in 'htmlcov/'.
+"""
+
 import unittest
 import sys
 from loguru import logger
@@ -20,6 +34,13 @@ logger.add(
 
 
 def main():
+    """
+    Discover and run all unittests in the 'tests' directory.
+
+    Reports test results and, if requested, coverage statistics.
+
+    Exits with status code 0 on success, 1 on failure.
+    """
     logger.info("🧪 Web Scraper Service - Running Tests")
     loader = unittest.TestLoader()
     suite = loader.discover("tests")
