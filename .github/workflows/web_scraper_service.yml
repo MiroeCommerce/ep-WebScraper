@@ -1,0 +1,37 @@
+name: Web Scraper Service CI
+
+on:
+  push:
+    branches:
+      - feature/EP-19_web-scraping-demo
+    paths:
+      - "web_scraper_service/**"
+      - ".github/workflows/web_scraper_service.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web_scraper_service
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 🧪 Run Tests with Coverage
+        run: |
+          source venv/bin/activate
+          python run_tests.py --cov
