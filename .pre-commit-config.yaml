@@ -1,0 +1,21 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-yaml
+        files: ^web_scraper_service/
+      - id: end-of-file-fixer
+        files: ^web_scraper_service/
+      - id: trailing-whitespace
+        files: ^web_scraper_service/
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.9
+    hooks:
+      - id: ruff
+        name: ruff-linter
+        args: [--fix, --exit-non-zero-on-fix]
+        files: ^web_scraper_service/.*\.py$
+      - id: ruff-format
+        name: ruff-formatter
+        files: ^web_scraper_service/.*\.py$
