@@ -1,30 +1,18 @@
 """
 Test runner script for the Web Scraper Service.
 
-Provides unified entry point for running all unittests and coverage
-reporting, with logging via Loguru.
+Provides a unified entry point for running all pytest tests and generating
+a coverage report.
 
 Usage:
-    python run_tests.py [--cov]
-
-Arguments:
-    --cov: If present, runs tests with coverage measurement and generates
-           HTML report in 'htmlcov/'.
+    python run_tests.py
 """
 
-import unittest
 import sys
+import pytest
 from loguru import logger
 
-USE_COVERAGE = "--cov" in sys.argv
-
-if USE_COVERAGE:
-    sys.argv.remove("--cov")
-    import coverage
-
-    cov = coverage.Coverage(source=["scrapers"])
-    cov.start()
-
+# --- Configuration ---
 logger.remove()
 logger.add(
     sys.stdout,
@@ -35,32 +23,33 @@ logger.add(
 
 def main():
     """
-    Discover and run all unittests in the 'tests' directory.
+    Discover and run all tests using pytest and generate a coverage report.
 
-    Reports test results and, if requested, coverage statistics.
-
-    Exits with status code 0 on success, 1 on failure.
+    Exits with the same status code as pytest.
     """
-    logger.info("🧪 Web Scraper Service - Running Tests")
-    loader = unittest.TestLoader()
-    suite = loader.discover("tests")
-    runner = unittest.TextTestRunner(verbosity=2)
-    result = runner.run(suite)
+    logger.info("Web Scraper Service - Running Tests with pytest")
+    logger.info("Coverage measurement is enabled by default.")
 
-    if USE_COVERAGE:
-        cov.stop()
-        cov.save()
-        logger.info("📊 Generating coverage report...")
-        cov.report(show_missing=True)
-        cov.html_report(directory="htmlcov")
-        logger.success("✅ HTML report created at ./htmlcov/index.html")
+    # Arguments for pytest, including coverage options
+    pytest_args = [
+        "tests",
+        "-v",
+        "--cov=scrapers",
+        "--cov-report=term-missing",  # Show a detailed table in the terminal
+        "--cov-report=html",  # Generate the HTML report in ./htmlcov/
+    ]
 
-    if result.wasSuccessful():
-        logger.success("🎉 ALL TESTS PASSED")
-        sys.exit(0)
+    # Execute pytest with our constructed arguments
+    exit_code = pytest.main(pytest_args)
+
+    # Report the final status based on pytest's exit code
+    if exit_code == 0:
+        logger.success("HTML report created at ./htmlcov/index.html")
+        logger.success("ALL TESTS PASSED")
     else:
-        logger.error("🔥 TESTS FAILED")
-        sys.exit(1)
+        logger.error(f"TESTS FAILED (pytest exit code: {exit_code})")
+
+    sys.exit(exit_code)
 
 
 if __name__ == "__main__":

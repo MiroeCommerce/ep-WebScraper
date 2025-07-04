@@ -1,12 +1,10 @@
 """
-Stub test suite for web scraper modules.
+Pytest suite for web scraper modules.
 
-Minimal tests for VendorAScraper, VendorBScraper, factory, and exception.
-
-Belongs to: Web Scraper Service - Tests
+Tests scraper instantiation, factory functions, and custom exceptions.
 """
 
-import unittest
+import pytest
 from scrapers import (
     VendorAScraper,
     VendorBScraper,
@@ -16,32 +14,52 @@ from scrapers import (
 )
 
 
-class TestVendorAScraperStub(unittest.TestCase):
-    def test_basic_instantiation(self):
-        scraper = VendorAScraper("vendor_a_stub")
-        self.assertEqual(scraper.name, "vendor_a_stub")
+def test_vendor_a_instantiation():
+    scraper_default = VendorAScraper()
+    assert scraper_default.name == "vendor_a"
+
+    scraper_custom = VendorAScraper(name="custom_a")
+    assert scraper_custom.name == "custom_a"
 
 
-class TestVendorBScraperStub(unittest.TestCase):
-    def test_basic_instantiation(self):
-        scraper = VendorBScraper("vendor_b_stub")
-        self.assertEqual(scraper.name, "vendor_b_stub")
+def test_vendor_a_stub_methods():
+    scraper = VendorAScraper()
+    html = scraper.fetch_html("http://fake-url.com")
+    parsed_data = scraper.parse_html(html, "http://fake-url.com")
+
+    assert "Stub content" in html
+    assert parsed_data["data_points"]["title"] == "Stub Title"
+    assert parsed_data["metadata"]["vendor"] == "vendor_a"
 
 
-class TestFactoryStub(unittest.TestCase):
-    def test_factory_creates_scrapers(self):
-        available = get_available_scrapers()
-        for name in available:
-            scraper = create_scraper(name)
-            self.assertEqual(scraper.name, name)
+def test_vendor_b_instantiation():
+    scraper_default = VendorBScraper()
+    assert scraper_default.name == "vendor_b"
+
+    scraper_custom = VendorBScraper(name="custom_b")
+    assert scraper_custom.name == "custom_b"
 
 
-class TestScrapingExceptionStub(unittest.TestCase):
-    def test_scraping_exception_message(self):
-        msg = "stub error"
-        e = ScrapingException(msg)
-        self.assertEqual(str(e), msg)
+def test_vendor_b_stub_methods():
+    scraper = VendorBScraper()
+    html = scraper.fetch_html("http://fake-url.com")
+    parsed_data = scraper.parse_html(html, "http://fake-url.com")
+
+    assert "Vendor B demo content" in html
+    assert parsed_data["data_points"]["title"] == "Vendor B Stub"
+    assert parsed_data["metadata"]["vendor"] == "vendor_b"
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
+@pytest.mark.parametrize("scraper_name", get_available_scrapers())
+def test_factory_creates_scrapers(scraper_name):
+    scraper = create_scraper(scraper_name)
+    assert scraper.name == scraper_name
+    assert isinstance(scraper, (VendorAScraper, VendorBScraper))
+
+
+def test_scraping_exception():
+    error_message = "A stub error occurred"
+    with pytest.raises(ScrapingException, match=error_message) as exc_info:
+        raise ScrapingException(error_message)
+
+    assert str(exc_info.value) == error_message

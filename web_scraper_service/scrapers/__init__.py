@@ -1,5 +1,5 @@
 """
-Scrapers package stub for demo/story purposes.
+Scraper's package stub for demo/story purposes.
 
 Provides registry, factory, and utility functions for vendor-specific web scrapers.
 """
