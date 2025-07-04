@@ -49,6 +49,7 @@ pylint==3.3.7
 PySocks==1.7.1
 pytest==8.4.1
 pytest-anyio==0.0.0
+pytest-cov==6.2.1
 python-dotenv==1.1.1
 PyYAML==6.0.2
 requests==2.32.4
