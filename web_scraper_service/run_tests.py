@@ -34,6 +34,7 @@ def main():
     pytest_args = [
         "tests",
         "-v",
+        "--cov=app",
         "--cov=scrapers",
         "--cov-report=term-missing",  # Show a detailed table in the terminal
         "--cov-report=html",  # Generate the HTML report in ./htmlcov/
