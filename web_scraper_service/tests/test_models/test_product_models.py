@@ -1,7 +1,7 @@
 # web_scraper_service/tests/test_product_models.py
 
 import pytest
-from app.models.product import LaptopProduct, PeripheralProduct
+from web_scraper_service.app.models.product import LaptopProduct, PeripheralProduct
 
 
 def test_laptop_product_valid():
