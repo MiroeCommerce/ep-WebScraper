@@ -5,7 +5,7 @@ Tests scraper instantiation, factory functions, and custom exceptions.
 """
 
 import pytest
-from scrapers import (
+from web_scraper_service.app.scrapers import (
     VendorAScraper,
     VendorBScraper,
     ScrapingException,

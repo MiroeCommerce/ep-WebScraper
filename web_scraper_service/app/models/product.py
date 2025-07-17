@@ -9,7 +9,7 @@ model structure or an inherited subtype.
 Belongs to: Data Modeling
 """
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 
 
@@ -35,7 +35,7 @@ class BaseProduct(BaseModel):
     url: str = Field(..., description="Product URL")
     available: bool = Field(True, description="Availability status")
 
-    @validator("sku")
+    @field_validator("sku")
     def sku_must_not_be_empty(cls, v):
         """Ensures the SKU field is not empty.
 

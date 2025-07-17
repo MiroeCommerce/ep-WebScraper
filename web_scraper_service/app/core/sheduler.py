@@ -1,13 +1,40 @@
-"""
-Scheduler module for automated scraping jobs.
+import logging
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from web_scraper_service.app.services.dispatcher import ScraperDispatcher
+from web_scraper_service.app.scrapers import get_available_scrapers
+from web_scraper_service.app.core.config import settings
 
-Uses APScheduler's BackgroundScheduler to run scraping tasks periodically
- hourly, daily. This module registers one or more scraping jobs
-that execute based on cron expressions or intervals.
+logger = logging.getLogger(__name__)
 
-Jobs typically trigger scraper dispatch functions like:
-- run_all(): for full category scraping
-- run_scraper(category): for specific scrapers
+# Initialize the scheduler. In a standard FastAPI/Uvicorn setup,
+# it will automatically attach to the running asyncio event loop.
+scheduler = AsyncIOScheduler()
 
-Belongs to: Core Scheduling
-"""
+
+async def scheduled_scraping_job():
+    """The actual job that the scheduler will run."""
+    logger.info("--- Scheduled scraping job triggered ---")
+    dispatcher = ScraperDispatcher()
+    # In a real scenario, you might have a more sophisticated way
+    # of determining which URLs to scrape.
+    for vendor_name in get_available_scrapers():
+        url_to_scrape = f"http://{vendor_name}.com/products/all"
+        logger.info(f"Dispatching scraping task for vendor: {vendor_name}")
+        await dispatcher.process_product_scraping(vendor_name, url_to_scrape)
+
+
+def initialize_scheduler():
+    """Initializes and starts the scheduler with the configured job."""
+    scheduler.add_job(
+        scheduled_scraping_job,
+        "cron",
+        hour=settings.SCHEDULER_CRON_HOUR,
+        minute=settings.SCHEDULER_CRON_MINUTE,
+        day_of_week=settings.SCHEDULER_CRON_DAY_OF_WEEK,
+        jitter=settings.SCHEDULER_JITTER,
+        id="scheduled_scraping_job",
+        replace_existing=True,
+        max_instances=1,  # Prevents overlapping jobs
+    )
+    scheduler.start()
+    logger.info("Scheduler initialized and started with the main scraping job.")

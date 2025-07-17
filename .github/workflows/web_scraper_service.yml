@@ -5,7 +5,7 @@ name: Web Scraper Service CI
 on:
   push:
     branches:
-      - feature/EP-26_kafka-producer
+      - feature/EP-24_and_EP-25_implementation
     paths:
       - "web_scraper_service/**"
       - ".github/workflows/web_scraper_service.yml"

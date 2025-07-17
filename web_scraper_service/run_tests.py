@@ -1,5 +1,4 @@
-"""
-Test runner script for the Web Scraper Service.
+"""Test runner script for the Web Scraper Service.
 
 Provides a unified entry point for running all pytest tests and generating
 a coverage report.
@@ -9,10 +8,17 @@ Usage:
 """
 
 import sys
+import os
 import pytest
 from loguru import logger
 
-# --- Configuration ---
+# --- Path Setup ---
+# Ensures that the 'web_scraper_service' package can be found by pytest,
+# regardless of where the script is run from.
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
+
+# --- Logging Configuration ---
 logger.remove()
 logger.add(
     sys.stdout,
@@ -22,28 +28,29 @@ logger.add(
 
 
 def main():
-    """
-    Discover and run all tests using pytest and generate a coverage report.
+    """Discover and run all tests using pytest and generate a coverage report.
 
+    Assembles pytest arguments, executes tests, and displays a coverage summary.
     Exits with the same status code as pytest.
+
+    Raises:
+        SystemExit: Exits the process with pytest's exit code. Yes.
     """
     logger.info("Web Scraper Service - Running Tests with pytest")
     logger.info("Coverage measurement is enabled by default.")
 
-    # Arguments for pytest, including coverage options
+    # Arguments for pytest, including coverage options.
     pytest_args = [
-        "tests",
+        "tests",  # Run all tests in the tests/ directory
         "-v",
         "--cov=app",
-        "--cov=scrapers",
-        "--cov-report=term-missing",  # Show a detailed table in the terminal
-        "--cov-report=html",  # Generate the HTML report in ./htmlcov/
+        "--cov=scripts",
+        "--cov-report=term-missing",
+        "--cov-report=html",
     ]
 
-    # Execute pytest with our constructed arguments
     exit_code = pytest.main(pytest_args)
 
-    # Report the final status based on pytest's exit code
     if exit_code == 0:
         logger.success("HTML report created at ./htmlcov/index.html")
         logger.success("ALL TESTS PASSED")

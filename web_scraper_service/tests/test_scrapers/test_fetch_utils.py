@@ -4,14 +4,20 @@ Pytest suite for the fetch_utils module.
 
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
-from scrapers.fetch_utils import fetch_html_sync, fetch_html_async, TimeoutException
+from web_scraper_service.app.scrapers.utils.fetch_utils import (
+    fetch_html_sync,
+    fetch_html_async,
+    TimeoutException,
+)
 
 DUMMY_HTML = "<html><body>OK</body></html>"
 
 
-@patch("scrapers.fetch_utils.requests.get")
-@patch("scrapers.fetch_utils.time_limit", MagicMock())
+@patch("web_scraper_service.app.scrapers.utils.fetch_utils.requests.get")
 def test_fetch_html_sync_success(mock_get):
+    """
+    Tests successful synchronous HTML fetching.
+    """
     mock_resp = MagicMock()
     mock_resp.status_code = 200
     mock_resp.text = DUMMY_HTML
@@ -22,17 +28,31 @@ def test_fetch_html_sync_success(mock_get):
     assert html == DUMMY_HTML
 
 
-@patch("scrapers.fetch_utils.requests.get")
-@patch("scrapers.fetch_utils.time_limit", side_effect=TimeoutException("Timed out"))
+# The order of decorators matters. It's applied bottom-up.
+# The order of arguments in the function signature must match top-to-bottom.
+@patch(
+    "web_scraper_service.app.scrapers.utils.fetch_utils.time_limit",
+    side_effect=TimeoutException("Timed out"),
+)
+@patch("web_scraper_service.app.scrapers.utils.fetch_utils.requests.get")
 def test_fetch_html_sync_retries_and_fails(mock_get, mock_time_limit):
-    mock_get.side_effect = Exception("fail")
-    with pytest.raises(Exception):
+    """
+    Tests that if the time_limit context manager raises a TimeoutException,
+    the function catches it and re-raises it after exhausting retries.
+    """
+    # This mock will never be called because the time_limit mock raises first.
+    mock_get.side_effect = Exception("This exception should not be raised.")
+
+    with pytest.raises(TimeoutException):
         fetch_html_sync("http://fail", timeout=1, max_retries=2)
 
 
 @pytest.mark.anyio
-@patch("scrapers.fetch_utils.aiohttp.ClientSession")
+@patch("web_scraper_service.app.scrapers.utils.fetch_utils.aiohttp.ClientSession")
 async def test_fetch_html_async_success(mock_session_cls):
+    """
+    Tests successful asynchronous HTML fetching.
+    """
     mock_resp = AsyncMock()
     mock_resp.text = AsyncMock(return_value=DUMMY_HTML)
     mock_resp.raise_for_status = MagicMock()
@@ -50,8 +70,11 @@ async def test_fetch_html_async_success(mock_session_cls):
 
 
 @pytest.mark.anyio
-@patch("scrapers.fetch_utils.aiohttp.ClientSession")
+@patch("web_scraper_service.app.scrapers.utils.fetch_utils.aiohttp.ClientSession")
 async def test_fetch_html_async_retries_and_fails(mock_session_cls):
+    """
+    Tests that asynchronous HTML fetching retries and eventually fails on exceptions.
+    """
     mock_session = AsyncMock()
     mock_session.get = MagicMock(side_effect=Exception("fail"))
 

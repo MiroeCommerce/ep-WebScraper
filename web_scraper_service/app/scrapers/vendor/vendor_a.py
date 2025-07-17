@@ -6,7 +6,7 @@ testing and demonstration, without real scraping logic.
 """
 
 from typing import Dict, Any
-from .base_scraper import BaseScraper
+from web_scraper_service.app.scrapers.base import BaseScraper
 
 
 class VendorAScraper(BaseScraper):

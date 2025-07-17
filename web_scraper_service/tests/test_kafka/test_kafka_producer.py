@@ -1,14 +1,13 @@
 """Kafka producer module for sending scraped data to Kafka topics.
 
-This module handles Kafka client configuration, message serialization,
-and publishing data to relevant topics in the ingestion pipeline.
+Handles Kafka client configuration, message serialization, and
+publishing data to relevant topics in the ingestion pipeline.
 """
 
 import logging
 import anyio
-import json
 from aiokafka import AIOKafkaProducer
-from typing import Any, Optional
+from typing import Any
 from web_scraper_service.app.core.config import settings
 
 logger = logging.getLogger("kafka_producer")
@@ -21,31 +20,28 @@ class KafkaProducerService:
     sends messages with retry logic, and logs results.
     """
 
-    def __init__(self, topic: Optional[str] = None):
-        """Initializes the KafkaProducerService.
+    def __init__(self):
+        """Initializes the KafkaProducerService using global settings.
 
-        Args:
-            topic (Optional[str]): The Kafka topic to produce to. If None,
-                uses the default topic from settings.
+        Sets up broker addresses, topic name, and max retries from app settings.
         """
         self.brokers = settings.KAFKA_BOOTSTRAP_SERVERS
-        self.topic = topic or settings.KAFKA_TOPIC
+        self.topic = settings.KAFKA_TOPIC
         self.max_retries = settings.KAFKA_MAX_RETRIES
-        self._producer: Optional[AIOKafkaProducer] = None
+        self._producer = None
 
     async def start(self) -> None:
-        """Initializes and starts the Kafka producer client.
+        """Initializes and starts the Kafka producer.
 
-        Returns:
-            None
+        Raises:
+            Exception: If the producer cannot be started.
         """
-        if not self._producer:
-            self._producer = AIOKafkaProducer(bootstrap_servers=self.brokers)
-            await self._producer.start()
-            logger.info("Kafka producer started for topic: %s", self.topic)
+        self._producer = AIOKafkaProducer(bootstrap_servers=self.brokers)
+        await self._producer.start()
+        logger.info("Kafka producer started for topic: %s", self.topic)
 
     async def stop(self) -> None:
-        """Stops the Kafka producer client gracefully.
+        """Stops the Kafka producer gracefully.
 
         Returns:
             None
@@ -53,20 +49,16 @@ class KafkaProducerService:
         if self._producer:
             await self._producer.stop()
             logger.info("Kafka producer stopped.")
-            self._producer = None
 
     async def send_product(self, product_model: Any) -> None:
-        """Serializes and sends product data to Kafka with retry logic.
+        """Serializes and sends product data to Kafka with retries.
 
         Args:
-            product_model (Any): The product data (Pydantic model or dict) to send.
+            product_model (Any): Product data as a Pydantic model or dict.
 
         Raises:
-            RuntimeError: If the producer has not been started.
+            RuntimeError: If the producer is not started.
             ValueError: If product_model cannot be serialized.
-
-        Returns:
-            None
         """
         if not self._producer:
             raise RuntimeError("Kafka producer is not started. Call start() first.")
@@ -91,20 +83,22 @@ class KafkaProducerService:
 
     @staticmethod
     def _serialize(product_model: Any) -> bytes:
-        """Serializes the product data into a JSON-encoded bytes object.
+        """Serializes product data into JSON-encoded bytes.
 
         Args:
             product_model (Any): The product data to serialize (Pydantic model or dict).
 
-        Raises:
-            ValueError: If product_model cannot be serialized.
-
         Returns:
             bytes: The JSON-encoded product data.
+
+        Raises:
+            ValueError: If the input cannot be serialized to JSON.
         """
         if hasattr(product_model, "model_dump_json"):
             return product_model.model_dump_json().encode("utf-8")
         elif isinstance(product_model, dict):
+            import json
+
             return json.dumps(product_model).encode("utf-8")
         else:
             raise ValueError(
