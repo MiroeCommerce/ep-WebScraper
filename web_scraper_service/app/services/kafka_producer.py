@@ -4,14 +4,13 @@ This module handles Kafka client configuration, message serialization,
 and publishing data to relevant topics in the ingestion pipeline.
 """
 
-import logging
 import anyio
 import json
 from aiokafka import AIOKafkaProducer
 from typing import Any, Optional
 from web_scraper_service.app.core.config import settings
+from web_scraper_service.app.utils.loguru_logger import logger
 
-logger = logging.getLogger("kafka_producer")
 
 
 class KafkaProducerService:

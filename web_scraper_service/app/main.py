@@ -22,7 +22,8 @@ if project_root not in sys.path:
 # --- Application Imports ---
 # These come after the path setup to ensure modules are found.
 # noqa: E402 is used to tell the linter to ignore that these are not at the top.
-from web_scraper_service.app.utils.logger import setup_logging  # noqa: E402
+# from web_scraper_service.app.utils.logger import setup_logging  # noqa: E402
+from web_scraper_service.app.utils.loguru_logger import setup_logger, logger  # noqa: E402
 from web_scraper_service.app.api import routes as api_routes  # noqa: E402
 from web_scraper_service.app.core.sheduler import (  # noqa: E402
     initialize_scheduler,
@@ -31,7 +32,7 @@ from web_scraper_service.app.core.sheduler import (  # noqa: E402
 
 # --- Logging Setup ---
 # Now that all modules are imported, we can configure logging.
-setup_logging()
+setup_logger()
 
 
 @asynccontextmanager
@@ -40,10 +41,10 @@ async def lifespan(app: FastAPI):
     Handle startup and shutdown events for the FastAPI application.
     The scheduler is initialized on startup and shut down gracefully on exit.
     """
-    print("Starting up the scheduler...")
+    logger.debug("Starting up the scheduler...")
     initialize_scheduler()
     yield
-    print("Shutting down the scheduler...")
+    logger.debug("Shutting down the scheduler...")
     if scheduler.running:
         scheduler.shutdown()
 
@@ -74,7 +75,7 @@ def read_root():
 def shutdown_scheduler_on_exit():
     """Ensures the scheduler is shut down when the application exits."""
     if scheduler.running:
-        print("Atexit: Shutting down scheduler...")
+        logger.debug("Atexit: Shutting down scheduler...")
         scheduler.shutdown(wait=False)
 
 

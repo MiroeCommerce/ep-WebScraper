@@ -4,13 +4,13 @@ Handles Kafka client configuration, message serialization, and
 publishing data to relevant topics in the ingestion pipeline.
 """
 
-import logging
+from web_scraper_service.app.utils.loguru_logger import logger
 import anyio
 from aiokafka import AIOKafkaProducer
 from typing import Any
 from web_scraper_service.app.core.config import settings
 
-logger = logging.getLogger("kafka_producer")
+# logger = logging.getLogger("kafka_producer")
 
 
 class KafkaProducerService:
