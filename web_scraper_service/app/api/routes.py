@@ -10,6 +10,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from web_scraper_service.app.models.api import ScrapeRequest, ScrapeResponse
 from web_scraper_service.app.services.dispatcher import ScraperDispatcher
 from web_scraper_service.app.scrapers import get_available_scrapers
+from web_scraper_service.app.utils.loguru_logger import logger
 
 # Create a new router object
 router = APIRouter()
@@ -23,6 +24,7 @@ async def run_scraping_job(vendor: str, category: str):
     process. It's designed to be called by FastAPI's BackgroundTasks, ensuring
     the API can respond immediately without waiting for the scrape to complete.
     """
+    logger.bind(vendor=vendor, category=category).info("Background scraping job started")
     dispatcher = ScraperDispatcher()
     # In a real-world scenario, you would likely have a mechanism to
     # determine the target URL from the vendor and category.
@@ -50,8 +52,10 @@ async def trigger_scraper(
     - **vendor**: The name of the registered scraper to use (e.g., 'vendor_a').
     - **category**: The product category to scrape (e.g., 'laptops').
     """
+    logger.bind(vendor=request.vendor, category=request.category).info("Scrape request received")
     # 1. Validate that the requested vendor scraper is available in the registry.
     if request.vendor not in get_available_scrapers():
+        logger.bind(vendor=request.vendor).warning("Vendor not found.")
         raise HTTPException(
             status_code=404, detail=f"Vendor '{request.vendor}' not found."
         )
@@ -60,6 +64,8 @@ async def trigger_scraper(
     # FastAPI will execute this after the response has been sent.
     task_id = str(uuid.uuid4())
     background_tasks.add_task(run_scraping_job, request.vendor, request.category)
+    logger.bind(task_id=task_id, vendor=request.vendor, category=request.category).info("Scraping job enqueued")
+
 
     # 3. Return an immediate response confirming the job has been accepted.
     return ScrapeResponse(

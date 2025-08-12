@@ -1,10 +1,9 @@
-import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from web_scraper_service.app.services.dispatcher import ScraperDispatcher
 from web_scraper_service.app.scrapers import get_available_scrapers
 from web_scraper_service.app.core.config import settings
+from web_scraper_service.app.utils.loguru_logger import logger
 
-logger = logging.getLogger(__name__)
 
 # Initialize the scheduler. In a standard FastAPI/Uvicorn setup,
 # it will automatically attach to the running asyncio event loop.
@@ -19,7 +18,7 @@ async def scheduled_scraping_job():
     # of determining which URLs to scrape.
     for vendor_name in get_available_scrapers():
         url_to_scrape = f"http://{vendor_name}.com/products/all"
-        logger.info(f"Dispatching scraping task for vendor: {vendor_name}")
+        logger.bind(vendor=vendor_name).info("Dispatching scraping task")
         await dispatcher.process_product_scraping(vendor_name, url_to_scrape)
 
 

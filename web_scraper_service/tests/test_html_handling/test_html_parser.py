@@ -2,6 +2,8 @@ from bs4 import BeautifulSoup
 from web_scraper_service.app.html_handling import html_utils
 import pandas as pd
 from unittest.mock import MagicMock
+from loguru import logger
+import pytest
 
 
 SAMPLE_HTML = """
@@ -167,3 +169,22 @@ def test_parse_products_to_dt_empty():
 
     assert isinstance(df, pd.DataFrame)
     assert df.empty
+
+
+
+def test_logger_called_on_parse_failure():
+    log_messages = []
+
+    def sink(message):
+        log_messages.append(message)
+
+    with logger.catch():
+        with logger.add(sink, format="{message}"):
+            broken_element = MagicMock()
+            broken_element.select_one.side_effect = Exception("Selector missing")
+
+            parser = html_utils.VendorProductParser(broken_element)
+            result = parser.parse_product_element()
+
+            assert result["title"] == "N/A"
+            assert any("Error parsing product" in str(m) for m in log_messages)
