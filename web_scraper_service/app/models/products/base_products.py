@@ -21,6 +21,20 @@ class BaseProduct(BaseModel):
     # Use the modern ConfigDict for model configuration
     model_config = ConfigDict(extra="forbid")
 
+    # --- THIS IS THE NEW FIELD ---
+    product_type: Literal[
+        "laptop",
+        "desktop",
+        "monitor",
+        "tablet",
+        "keyboard",
+        "mouse",
+        "processor",
+        "ram",
+        "storage",
+        "gpu",
+    ] = Field(..., description="The type of the product.")
+
     product_name: str = Field(
         ..., min_length=1, description="Full marketing name of the product."
     )

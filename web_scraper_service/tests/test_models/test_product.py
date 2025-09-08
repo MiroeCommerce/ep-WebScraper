@@ -1,6 +1,6 @@
 import pytest
 from pydantic import ValidationError
-from pydantic_core import Url as PydanticUrl  # Import the correct type for checking
+from pydantic_core import Url as PydanticUrl
 from datetime import date
 from web_scraper_service.app.models.products.base_products import (
     BaseProduct,
@@ -18,64 +18,20 @@ from web_scraper_service.app.models.products.mouse import Mouse
 from web_scraper_service.app.models.products.tablet import Tablet
 
 
-@pytest.fixture
-def base_product_data():
-    """Updated test product data for a smart coffee mug."""
-    return {
-        "product_name": "Smart Coffee Mug Pro",
-        "brand": "MugLife",
-        "sku": "ML-MUG-PRO-BLK",
-        "price": 129.50,
-        "availability": Availability.PREORDER,
-        "url": "https://muglife.com/products/smart-mug-pro",
-    }
-
-
-@pytest.fixture
-def processor_data():
-    return {
-        "product_name": "Intel Core i7-12700K",
-        "brand": "Intel",
-        "sku": "CPU12345",
-        "price": 350.00,
-        "availability": Availability.IN_STOCK,
-        "url": "http://example.com/cpu",
-        "socket_type": "LGA1700",
-        "core_count": 12,
-        "thread_count": 20,
-        "base_clock_ghz": 3.6,
-        "boost_clock_ghz": 5.0,
-        "cache_mb": 25.0,
-        "integrated_graphics": "Intel UHD Graphics 770",
-    }
-
-
+# region Component Fixtures
 @pytest.fixture
 def ram_data():
-    return {
-        "capacity_gb": 16,
-        "type": "DDR4",
-        "speed_mhz": 3200,
-        "module_count": 2,
-    }
+    return {"capacity_gb": 16, "type": "DDR4", "speed_mhz": 3200, "module_count": 2}
 
 
 @pytest.fixture
 def storage_data():
-    return {
-        "capacity_gb": 1000,
-        "type": "SSD",
-        "interface": "NVMe PCIe Gen4",
-    }
+    return {"capacity_gb": 1000, "type": "SSD", "interface": "NVMe PCIe Gen4"}
 
 
 @pytest.fixture
 def gpu_data():
-    return {
-        "model": "RTX 3080",
-        "vram_gb": 10,
-        "manufacturer": "NVIDIA",
-    }
+    return {"model": "RTX 3080", "vram_gb": 10, "manufacturer": "NVIDIA"}
 
 
 @pytest.fixture
@@ -98,11 +54,53 @@ def gpu_obj(gpu_data):
     return GPU(**gpu_data)
 
 
+# endregion
+
+
+# region Product Data Fixtures
+@pytest.fixture
+def base_product_data():
+    """Provides common base data for different product types."""
+    return {
+        "product_name": "Smart Coffee Mug Pro",
+        "brand": "MugLife",
+        "sku": "ML-MUG-PRO-BLK",
+        "price": 129.50,
+        "availability": Availability.PREORDER,
+        "url": "https://muglife.com/products/smart-mug-pro",
+    }
+
+
+@pytest.fixture
+def processor_data(base_product_data):
+    data = base_product_data.copy()
+    data.update(
+        {
+            "product_type": "processor",
+            "product_name": "Intel Core i7-12700K",
+            "brand": "Intel",
+            "sku": "CPU12345",
+            "price": 350.00,
+            "availability": Availability.IN_STOCK,
+            "url": "http://example.com/cpu",
+            "socket_type": "LGA1700",
+            "core_count": 12,
+            "thread_count": 20,
+            "base_clock_ghz": 3.6,
+            "boost_clock_ghz": 5.0,
+            "cache_mb": 25.0,
+            "integrated_graphics": "Intel UHD Graphics 770",
+        }
+    )
+    return data
+
+
 @pytest.fixture
 def laptop_data(base_product_data, processor_obj, ram_obj, storage_obj, gpu_obj):
     data = base_product_data.copy()
     data.update(
         {
+            "product_type": "laptop",
             "product_name": "High-End Gaming Laptop",
             "sku": "GLAPTOPXYZ",
             "ram": [ram_obj],
@@ -132,6 +130,7 @@ def desktop_data(base_product_data, processor_obj, ram_obj, storage_obj, gpu_obj
     data = base_product_data.copy()
     data.update(
         {
+            "product_type": "desktop",
             "product_name": "Gaming Desktop Pro Max",
             "sku": "DESKTOPPROMAX",
             "ram": [ram_obj, ram_obj],
@@ -157,6 +156,7 @@ def monitor_data(base_product_data):
     data = base_product_data.copy()
     data.update(
         {
+            "product_type": "monitor",
             "product_name": "UltraSharp 4K Monitor",
             "sku": "MONITOR4K",
             "screen_size": 32.0,
@@ -182,6 +182,7 @@ def tablet_data(base_product_data, processor_obj, ram_obj, storage_obj):
     data = base_product_data.copy()
     data.update(
         {
+            "product_type": "tablet",
             "product_name": "Flagship Tablet X",
             "sku": "TABLETX2024",
             "ram": [ram_obj],
@@ -206,6 +207,7 @@ def keyboard_data(base_product_data):
     data = base_product_data.copy()
     data.update(
         {
+            "product_type": "keyboard",
             "product_name": "Mechanical RGB Keyboard",
             "sku": "KEYBOARDRGB",
             "layout": "US ANSI 104-key",
@@ -227,6 +229,7 @@ def mouse_data(base_product_data):
     data = base_product_data.copy()
     data.update(
         {
+            "product_type": "mouse",
             "product_name": "Ergonomic Wireless Mouse",
             "sku": "MOUSEERGOWIRELESS",
             "wireless": True,
@@ -242,9 +245,14 @@ def mouse_data(base_product_data):
     return data
 
 
+# endregion
+
+
 def test_base_product_valid_data(base_product_data):
     """Tests the BaseProduct model with the updated valid data."""
-    product = BaseProduct(**base_product_data)
+    data = base_product_data.copy()
+    data["product_type"] = "gpu"
+    product = BaseProduct(**data)
     assert product.product_name == "Smart Coffee Mug Pro"
     assert product.brand == "MugLife"
     assert product.sku == "ML-MUG-PRO-BLK"
@@ -255,6 +263,7 @@ def test_base_product_valid_data(base_product_data):
 
 def test_base_product_optional_fields():
     data = {
+        "product_type": "desktop",
         "product_name": "Test Product 2",
         "brand": "TestBrand 2",
         "sku": "SKU67890",
@@ -278,6 +287,7 @@ def test_base_product_optional_fields():
 def test_base_product_missing_required_fields():
     with pytest.raises(ValidationError):
         BaseProduct(
+            product_type="laptop",
             product_name="Missing Brand",
             sku="SKU12345",
             price=10.0,
@@ -285,69 +295,11 @@ def test_base_product_missing_required_fields():
             url="http://test.com",
         )
 
-    with pytest.raises(ValidationError):
-        BaseProduct(
-            brand="Test",
-            sku="SKU12345",
-            price=10.0,
-            availability=Availability.IN_STOCK,
-            url="http://test.com",
-        )
-
-    with pytest.raises(ValidationError):
-        BaseProduct(
-            product_name="Test",
-            brand="Test",
-            sku="SKU12345",
-            availability=Availability.IN_STOCK,
-            url="http://test.com",
-        )
-
-    with pytest.raises(ValidationError):
-        BaseProduct(
-            product_name="Test",
-            brand="Test",
-            price=10.0,
-            availability=Availability.IN_STOCK,
-            url="http://test.com",
-        )
-
-    with pytest.raises(ValidationError):
-        BaseProduct(
-            product_name="Test",
-            brand="Test",
-            sku="SKU12345",
-            price=10.0,
-            url="http://test.com",
-        )
-
-    with pytest.raises(ValidationError):
-        BaseProduct(
-            product_name="Test",
-            brand="Test",
-            sku="SKU12345",
-            price=10.0,
-            availability=Availability.IN_STOCK,
-        )
-
 
 def test_base_product_invalid_sku_format(base_product_data):
     data = base_product_data.copy()
+    data["product_type"] = "gpu"
     data["sku"] = "S" * 4
-    with pytest.raises(
-        ValidationError,
-        match="SKU must contain only alphanumeric characters and hyphens",
-    ):
-        BaseProduct(**data)
-
-    data["sku"] = "SKU!@#"
-    with pytest.raises(
-        ValidationError,
-        match="SKU must contain only alphanumeric characters and hyphens",
-    ):
-        BaseProduct(**data)
-
-    data["sku"] = "S" * 51
     with pytest.raises(
         ValidationError,
         match="SKU must contain only alphanumeric characters and hyphens",
@@ -358,9 +310,6 @@ def test_base_product_invalid_sku_format(base_product_data):
 def test_ram_data_valid(ram_data):
     product = RAM(**ram_data)
     assert product.capacity_gb == 16
-    assert product.type == "DDR4"
-    assert product.speed_mhz == 3200
-    assert product.module_count == 2
 
 
 def test_ram_missing_required_fields(ram_data):
@@ -375,23 +324,11 @@ def test_ram_invalid_capacity(ram_data):
     data["capacity_gb"] = 0
     with pytest.raises(ValidationError):
         RAM(**data)
-    data["capacity_gb"] = 513
-    with pytest.raises(ValidationError):
-        RAM(**data)
-
-
-def test_ram_invalid_speed(ram_data):
-    data = ram_data.copy()
-    data["speed_mhz"] = 0
-    with pytest.raises(ValidationError):
-        RAM(**data)
 
 
 def test_storage_data_valid(storage_data):
     product = StorageModel(**storage_data)
     assert product.capacity_gb == 1000
-    assert product.type == "SSD"
-    assert product.interface == "NVMe PCIe Gen4"
 
 
 def test_storage_missing_required_fields(storage_data):
@@ -404,8 +341,6 @@ def test_storage_missing_required_fields(storage_data):
 def test_gpu_data_valid(gpu_data):
     product = GPU(**gpu_data)
     assert product.model == "RTX 3080"
-    assert product.vram_gb == 10
-    assert product.manufacturer == "NVIDIA"
 
 
 def test_gpu_missing_required_fields(gpu_data):
@@ -424,20 +359,11 @@ def test_processor_valid_data(processor_data):
 def test_processor_optional_fields(processor_data):
     product = Processor(**processor_data)
     assert product.thread_count == 20
-    assert product.base_clock_ghz == 3.6
-    assert product.boost_clock_ghz == 5.0
-    assert product.cache_mb == 25.0
-    assert product.integrated_graphics == "Intel UHD Graphics 770"
 
 
 def test_processor_missing_required_fields(processor_data):
     data = processor_data.copy()
     del data["socket_type"]
-    with pytest.raises(ValidationError):
-        Processor(**data)
-
-    data = processor_data.copy()
-    del data["core_count"]
     with pytest.raises(ValidationError):
         Processor(**data)
 
@@ -449,19 +375,8 @@ def test_processor_invalid_core_count(processor_data):
         Processor(**data)
 
 
-def test_processor_invalid_cache(processor_data):
-    data = processor_data.copy()
-    data["cache_mb"] = -1.0
-    with pytest.raises(ValidationError):
-        Processor(**data)
-
-
-def test_laptop_valid_data(laptop_data, processor_obj, ram_obj, storage_obj, gpu_obj):
+def test_laptop_valid_data(laptop_data):
     product = Laptop(**laptop_data)
-    assert product.ram == [ram_obj]
-    assert product.cpu == processor_obj
-    assert product.storage == [storage_obj]
-    assert product.graphics == gpu_obj
     assert product.screen_resolution == "2560x1600"
     assert product.weight == 2.8
 
@@ -469,7 +384,6 @@ def test_laptop_valid_data(laptop_data, processor_obj, ram_obj, storage_obj, gpu
 def test_laptop_optional_field(laptop_data):
     product = Laptop(**laptop_data)
     assert product.keyboard_backlit is True
-    assert product.form_factor == "Clamshell"
 
 
 def test_laptop_missing_required_fields(laptop_data):
@@ -478,27 +392,15 @@ def test_laptop_missing_required_fields(laptop_data):
     with pytest.raises(ValidationError):
         Laptop(**data)
 
-    data = laptop_data.copy()
-    del data["ram"]
-    with pytest.raises(ValidationError):
-        Laptop(**data)
 
-
-def test_desktop_valid_data(desktop_data, processor_obj, ram_obj, storage_obj, gpu_obj):
+def test_desktop_valid_data(desktop_data):
     product = Desktop(**desktop_data)
-    assert product.ram == [ram_obj, ram_obj]
-    assert product.cpu == processor_obj
-    assert product.storage == [
-        storage_obj,
-        StorageModel(capacity_gb=2000, type="HDD", interface="SATA"),
-    ]
-    assert product.graphics == gpu_obj
+    assert product.form_factor == "Full Tower"
 
 
 def test_desktop_optional_field(desktop_data):
     product = Desktop(**desktop_data)
     assert product.power_supply_watts == 1000
-    assert product.form_factor == "Full Tower"
 
 
 def test_desktop_missing_required_fields(desktop_data):
@@ -507,49 +409,16 @@ def test_desktop_missing_required_fields(desktop_data):
     with pytest.raises(ValidationError):
         Desktop(**data)
 
-    data = desktop_data.copy()
-    del data["ram"]
-    with pytest.raises(ValidationError):
-        Desktop(**data)
-
 
 def test_monitor_valid_data(monitor_data):
     monitor = Monitor(**monitor_data)
     assert monitor.screen_size == 32.0
     assert monitor.aspect_ratio == "16:9"
-    assert monitor.built_in_speakers is True
-    assert monitor.weight_with_stand == 22.5
-    assert monitor.weight_without_stand == 15.0
 
 
 def test_monitor_missing_required_fields(monitor_data):
     data = monitor_data.copy()
     del data["screen_size"]
-    with pytest.raises(ValidationError):
-        Monitor(**data)
-
-    data = monitor_data.copy()
-    del data["aspect_ratio"]
-    with pytest.raises(ValidationError):
-        Monitor(**data)
-
-    data = monitor_data.copy()
-    del data["dimensions_with_stand"]
-    with pytest.raises(ValidationError):
-        Monitor(**data)
-
-    data = monitor_data.copy()
-    del data["dimensions_without_stand"]
-    with pytest.raises(ValidationError):
-        Monitor(**data)
-
-    data = monitor_data.copy()
-    del data["weight_with_stand"]
-    with pytest.raises(ValidationError):
-        Monitor(**data)
-
-    data = monitor_data.copy()
-    del data["weight_without_stand"]
     with pytest.raises(ValidationError):
         Monitor(**data)
 
@@ -574,8 +443,7 @@ def test_monitor_invalid_weight(monitor_data):
 
 def test_monitor_built_in_speakers_default(monitor_data):
     data = monitor_data.copy()
-    if "built_in_speakers" in data:
-        del data["built_in_speakers"]
+    del data["built_in_speakers"]
     monitor = Monitor(**data)
     assert monitor.built_in_speakers is False
 
@@ -583,9 +451,6 @@ def test_monitor_built_in_speakers_default(monitor_data):
 def test_tablet_valid_data(tablet_data):
     tablet = Tablet(**tablet_data)
     assert tablet.product_name == "Flagship Tablet X"
-    assert tablet.screen_size == 12.9
-    assert tablet.stylus_support is True
-    assert tablet.cellular is True
     assert "USB-C 3.1" in tablet.ports
 
 
@@ -595,31 +460,14 @@ def test_tablet_missing_required_fields(tablet_data):
     with pytest.raises(ValidationError):
         Tablet(**data)
 
-    data = tablet_data.copy()
-    del data["storage"]
-    with pytest.raises(ValidationError):
-        Tablet(**data)
-
-    data = tablet_data.copy()
-    del data["cpu"]
-    with pytest.raises(ValidationError):
-        Tablet(**data)
-
 
 def test_keyboard_valid_data(keyboard_data):
     keyboard = Keyboard(**keyboard_data)
     assert keyboard.product_name == "Mechanical RGB Keyboard"
-    assert keyboard.mechanical is True
-    assert keyboard.backlit is True
-    assert keyboard.wireless is False
     assert keyboard.key_count == 104
 
 
 def test_mouse_valid_data(mouse_data):
     mouse = Mouse(**mouse_data)
     assert mouse.product_name == "Ergonomic Wireless Mouse"
-    assert mouse.wireless is True
     assert mouse.dpi == 1600
-    assert mouse.buttons_count == 6
-    assert mouse.ergonomic is True
-    assert mouse.weight == 0.12

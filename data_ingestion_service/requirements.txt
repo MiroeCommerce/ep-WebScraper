@@ -1,0 +1,12 @@
+# Core application dependencies
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+alembic
+python-dotenv
+loguru
+pydantic-settings
+
+# Kafka consumer dependencies
+aiokafka

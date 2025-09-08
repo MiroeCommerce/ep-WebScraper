@@ -1,6 +1,4 @@
-# File: WebScraper/web_scraper_service/.dockerignore
-
-# Git
+# Git dep
 .git
 .gitignore
 
@@ -23,4 +21,3 @@ env/
 
 # macOS
 .DS_Store
-
