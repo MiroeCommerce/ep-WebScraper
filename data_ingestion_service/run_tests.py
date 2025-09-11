@@ -1,11 +1,18 @@
+"""Test runner script for the Data Ingestion Service."""
+
 import sys
 import os
 import pytest
 from loguru import logger
 
+# --- Path Setup ---
+# Ensures that the project's root directory is on the Python path,
+# so that modules like 'data_ingestion_service' can be found.
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, project_root)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
+# --- Logging Configuration ---
 logger.remove()
 logger.add(
     sys.stdout,
@@ -15,17 +22,18 @@ logger.add(
 
 
 def main():
-    logger.info("Web Scraper Service - Running Tests with pytest")
+    """Discover and run all tests using pytest and generate a coverage report."""
+    logger.info("Data Ingestion Service - Running Tests with pytest")
     logger.info("Coverage measurement is enabled by default.")
 
+    # Arguments for pytest, including coverage options for the 'app' directory.
     pytest_args = [
-        "tests",
+        "tests",  # Run all tests in the tests/ directory within this service
         "-v",
         "--cov=app",
         "--cov-report=term-missing",
         "--cov-report=html",
     ]
-    pytest_args.extend(sys.argv[1:])
 
     exit_code = pytest.main(pytest_args)
 

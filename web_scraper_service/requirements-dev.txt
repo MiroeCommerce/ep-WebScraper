@@ -1,5 +1,7 @@
-# File: requirements-dev.txt
+-r requirements-prod.txt
 
+# Then, add packages for development and testing
+# (Your existing content from this file)
 astroid==3.3.10
 black==25.1.0
 cfgv==3.4.0
@@ -37,3 +39,4 @@ trio==0.30.0
 trio-websocket==0.12.2
 virtualenv==20.31.2
 wsproto==1.2.0
+loguru

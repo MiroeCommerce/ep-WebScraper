@@ -4,9 +4,6 @@ from web_scraper_service.app.scrapers import get_available_scrapers
 from web_scraper_service.app.core.config import settings
 from web_scraper_service.app.utils.loguru_logger import logger
 
-
-# Initialize the scheduler. In a standard FastAPI/Uvicorn setup,
-# it will automatically attach to the running asyncio event loop.
 scheduler = AsyncIOScheduler()
 
 

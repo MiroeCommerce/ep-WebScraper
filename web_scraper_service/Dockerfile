@@ -1,5 +1,3 @@
-# File: WebScraper/web_scraper_service/Dockerfile
-
 # ---- Stage 1: Builder and Test Environment ----
 FROM almalinux:9 AS builder
 
@@ -69,4 +67,3 @@ EXPOSE 8000
 
 # The command to run the application
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-

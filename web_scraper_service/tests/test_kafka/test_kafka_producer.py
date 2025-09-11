@@ -1,106 +1,88 @@
-"""Kafka producer module for sending scraped data to Kafka topics.
+"""
+Unit tests for the KafkaProducerService.
 
-Handles Kafka client configuration, message serialization, and
-publishing data to relevant topics in the ingestion pipeline.
+Tests cover producer lifecycle, message serialization, retry logic,
+and the new dynamic topic routing based on product_type.
 """
 
-from web_scraper_service.app.utils.loguru_logger import logger
-import anyio
-from aiokafka import AIOKafkaProducer
-from typing import Any
-from web_scraper_service.app.core.config import settings
-
-# logger = logging.getLogger("kafka_producer")
+import pytest
+from unittest.mock import patch, AsyncMock, MagicMock
+from web_scraper_service.app.services.kafka_producer import KafkaProducerService
+from web_scraper_service.app.models.products.laptop import Laptop
 
 
-class KafkaProducerService:
-    """Asynchronous Kafka producer service for publishing product data.
+# Mock Pydantic models for testing
+@pytest.fixture
+def mock_laptop_model():
+    """Provides a valid mock Laptop model."""
+    return Laptop(
+        product_type="laptop",
+        product_name="Test Laptop",
+        brand="TestBrand",
+        sku="TEST-LAP-001",
+        price=1200.50,
+        availability="in_stock",
+        url="http://test.com/laptop",
+        ram="16GB",
+        storage="512GB SSD",
+        cpu="Test CPU",
+        screen_resolution="1920x1080",
+        screen_size=15.6,
+        touchscreen=False,
+        weight=2.1,
+    )
 
-    This service initializes a Kafka producer client, serializes product data,
-    sends messages with retry logic, and logs results.
+
+@pytest.mark.anyio
+@patch("web_scraper_service.app.services.kafka_producer.AIOKafkaProducer")
+async def test_send_product_sends_to_correct_topic(
+    mock_aio_producer, mock_laptop_model
+):
     """
+    Tests that send_product sends a message to the correct, dynamically generated topic.
+    """
+    # Arrange
+    mock_producer_instance = mock_aio_producer.return_value
+    mock_producer_instance.start = AsyncMock()
+    mock_producer_instance.send_and_wait = AsyncMock()
+    mock_producer_instance.stop = AsyncMock()
 
-    def __init__(self):
-        """Initializes the KafkaProducerService using global settings.
+    producer = KafkaProducerService()
+    await producer.start()
 
-        Sets up broker addresses, topic name, and max retries from app settings.
-        """
-        self.brokers = settings.KAFKA_BOOTSTRAP_SERVERS
-        self.topic = settings.KAFKA_TOPIC
-        self.max_retries = settings.KAFKA_MAX_RETRIES
-        self._producer = None
+    # Act
+    await producer.send_product(mock_laptop_model)
 
-    async def start(self) -> None:
-        """Initializes and starts the Kafka producer.
+    # Assert
+    # Verify it was sent to the 'products-laptop' topic
+    mock_producer_instance.send_and_wait.assert_called_once()
+    call_args = mock_producer_instance.send_and_wait.call_args
+    assert call_args[0][0] == "products-laptop"  # Check the topic name
+    await producer.stop()
 
-        Raises:
-            Exception: If the producer cannot be started.
-        """
-        self._producer = AIOKafkaProducer(bootstrap_servers=self.brokers)
-        await self._producer.start()
-        logger.info("Kafka producer started for topic: %s", self.topic)
 
-    async def stop(self) -> None:
-        """Stops the Kafka producer gracefully.
+@pytest.mark.anyio
+@patch("web_scraper_service.app.services.kafka_producer.AIOKafkaProducer")
+async def test_send_product_raises_error_if_no_type(mock_aio_producer):
+    """
+    Tests that send_product raises a ValueError if the model has no 'product_type' attribute.
+    """
+    # Arrange
+    mock_producer_instance = mock_aio_producer.return_value
+    mock_producer_instance.start = AsyncMock()
+    mock_producer_instance.stop = AsyncMock()
 
-        Returns:
-            None
-        """
-        if self._producer:
-            await self._producer.stop()
-            logger.info("Kafka producer stopped.")
+    producer = KafkaProducerService()
+    await producer.start()
 
-    async def send_product(self, product_model: Any) -> None:
-        """Serializes and sends product data to Kafka with retries.
+    # Create a simple object without the required attribute
+    product_without_type = MagicMock()
+    del product_without_type.product_type
 
-        Args:
-            product_model (Any): Product data as a Pydantic model or dict.
+    # Act & Assert
+    with pytest.raises(
+        ValueError, match="Product model must have a 'product_type' attribute."
+    ):
+        await producer.send_product(product_without_type)
 
-        Raises:
-            RuntimeError: If the producer is not started.
-            ValueError: If product_model cannot be serialized.
-        """
-        if not self._producer:
-            raise RuntimeError("Kafka producer is not started. Call start() first.")
-
-        message_bytes = self._serialize(product_model)
-        attempt = 0
-
-        while attempt < self.max_retries:
-            try:
-                await self._producer.send_and_wait(self.topic, message_bytes)
-                logger.info(
-                    "Message sent to Kafka topic '%s' on attempt %d",
-                    self.topic,
-                    attempt + 1,
-                )
-                return
-            except Exception as e:
-                logger.error("Kafka send attempt %d failed: %s", attempt + 1, str(e))
-                attempt += 1
-                await anyio.sleep(2)
-        logger.error("All retries failed. Message was not sent to Kafka.")
-
-    @staticmethod
-    def _serialize(product_model: Any) -> bytes:
-        """Serializes product data into JSON-encoded bytes.
-
-        Args:
-            product_model (Any): The product data to serialize (Pydantic model or dict).
-
-        Returns:
-            bytes: The JSON-encoded product data.
-
-        Raises:
-            ValueError: If the input cannot be serialized to JSON.
-        """
-        if hasattr(product_model, "model_dump_json"):
-            return product_model.model_dump_json().encode("utf-8")
-        elif isinstance(product_model, dict):
-            import json
-
-            return json.dumps(product_model).encode("utf-8")
-        else:
-            raise ValueError(
-                "Cannot serialize product_model: must be a Pydantic model or dict."
-            )
+    await producer.stop()

@@ -1,0 +1,6 @@
+# First, install all production dependencies
+-r requirements.txt
+
+# Then, add packages used only for testing
+pytest
+pytest-cov
