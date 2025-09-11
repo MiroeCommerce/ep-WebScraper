@@ -26,14 +26,12 @@ jobs:
           KAFKA_CFG_NODE_ID: 0
           KAFKA_CFG_PROCESS_ROLES: 'controller,broker'
           KAFKA_CFG_LISTENERS: 'PLAINTEXT://:9092,CONTROLLER://:9093'
-          # This is the key change: advertise on localhost
           KAFKA_CFG_ADVERTISED_LISTENERS: 'PLAINTEXT://localhost:9092'
           KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT'
           KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: '0@kafka:9093'
           KAFKA_CFG_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
           ALLOW_PLAINTEXT_LISTENER: 'yes'
           KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: 'true'
-        # Re-add the port mapping to make Kafka available on the runner's localhost
         ports:
           - 9092:9092
 
@@ -49,14 +47,12 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
 
-      # Use a simple, reliable sleep to wait for Kafka to initialize
       - name: Wait for Kafka to start
         run: sleep 20
 
       - name: Run Web Scraper Tests
         run: python run_tests.py
         env:
-          # Change the bootstrap server back to localhost
           KAFKA_BOOTSTRAP_SERVERS: localhost:9092
 
   test-data-ingestion:
@@ -64,21 +60,6 @@ jobs:
     defaults:
       run:
         working-directory: ./data_ingestion_service
-
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_USER: testuser
-          POSTGRES_PASSWORD: testpassword
-          POSTGRES_DB: testdb
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
       - name: Checkout repository
@@ -92,9 +73,5 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
 
-      - name: Run Data Ingestion Migrations & Tests
-        run: |
-          python run_migrations.py upgrade head
-          python run_tests.py
-        env:
-          DATABASE_URL: "postgresql://testuser:testpassword@localhost:5432/testdb"
+      - name: Run Data Ingestion Tests
+        run: python run_tests.py

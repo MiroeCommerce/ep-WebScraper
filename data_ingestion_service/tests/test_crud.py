@@ -1,123 +1,92 @@
+"""Unit tests for the CRUD operations in the Data Ingestion Service."""
+
 import pytest
-from sqlalchemy.orm import Session
-from data_ingestion_service.app.core.database import SessionLocal, Base, engine
-from data_ingestion_service.app import crud
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
+from decimal import Decimal
+
+# These absolute imports are correct for tests. They assume you run pytest
+# from the project root ('data_ingestion_service'), making 'app' a top-level package.
+from app.core.database import Base
+from app import crud
+from app import models
+
+# Use an in-memory SQLite database for fast, isolated tests
+engine = create_engine("sqlite:///:memory:")
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-# This fixture will run once per session, creating tables before any tests run
-# and dropping them after all tests are finished.
-@pytest.fixture(scope="session", autouse=True)
-def setup_database():
-    Base.metadata.create_all(bind=engine)
-    yield
-    Base.metadata.drop_all(bind=engine)
-
-
-@pytest.fixture
+@pytest.fixture(scope="function")
 def db_session() -> Session:
     """
-    Pytest fixture to create a new database session for each test,
-    running inside a transaction that is rolled back.
-    """
-    connection = engine.connect()
-    transaction = connection.begin()
-    db = Session(bind=connection)
+    Pytest fixture that provides a clean database session for each test.
 
+    It creates all tables before the test runs and drops them afterward.
+    """
+    Base.metadata.create_all(bind=engine)
+    db = TestingSessionLocal()
     try:
         yield db
     finally:
         db.close()
-        transaction.rollback()
-        connection.close()
+        Base.metadata.drop_all(bind=engine)
 
 
-def test_create_and_get_vendor(db_session: Session):
-    """
-    Tests creating a new vendor and then retrieving it.
-    """
-    vendor_name = "Test Vendor"
-    created_vendor = crud.create_vendor(db=db_session, name=vendor_name)
-    assert created_vendor.name == vendor_name
-    assert created_vendor.id is not None
-
-    retrieved_vendor = crud.get_vendor_by_name(db=db_session, name=vendor_name)
-    assert retrieved_vendor is not None
-    assert retrieved_vendor.id == created_vendor.id
-
-
-def test_create_and_get_category(db_session: Session):
-    """
-    Tests creating a new category and then retrieving it.
-    """
-    category_name = "Test Category"
-    created_category = crud.create_category(db=db_session, name=category_name)
-    assert created_category.name == category_name
-    assert created_category.id is not None
-
-    retrieved_category = crud.get_category_by_name(db=db_session, name=category_name)
-    assert retrieved_category is not None
-    assert retrieved_category.id == created_category.id
-
-
-def test_get_or_create_handles_existing(db_session: Session):
-    """
-    Tests that get_or_create functions return existing entities without creating new ones.
-    """
-    vendor = crud.create_vendor(db=db_session, name="Existing Vendor")
-    category = crud.create_category(db=db_session, name="Existing Category")
-
-    retrieved_vendor = crud.get_or_create_vendor(db=db_session, name="Existing Vendor")
-    retrieved_category = crud.get_or_create_category(db=db_session, name="Existing Category")
-
-    assert retrieved_vendor.id == vendor.id
-    assert retrieved_category.id == category.id
-
-
-def test_create_or_update_product_creates_new(db_session: Session):
-    """
-    Tests that create_or_update_product correctly creates a new product.
-    """
+def test_create_product_with_new_relations(db_session: Session):
+    """Tests creating a product with a new vendor and category."""
     product_data = {
         "sku": "NEW-SKU-001",
-        "name": "New Product",
-        "price": 100.00,
-        "vendor": "New Vendor",
-        "category": "New Category"
+        "name": "New Awesome Laptop",
+        "price": Decimal("1299.99"),
+        "specs": {"ram": "16GB", "cpu": "i7"},
+        "vendor_name": "Ultimate Tech",
+        "category_name": "Laptops"
     }
-
     product = crud.create_or_update_product(db=db_session, product_data=product_data)
+    assert product.sku == "NEW-SKU-001"
+    assert product.vendor.name == "Ultimate Tech"
+    assert product.category.name == "Laptops"
 
-    assert product.name == "New Product"
-    assert product.price == 100.00
-    assert product.vendor.name == "New Vendor"
 
-
-def test_create_or_update_product_updates_existing(db_session: Session):
-    """
-    Tests that create_or_update_product correctly updates an existing product.
-    """
-    # 1. Create an initial product
+def test_update_existing_product(db_session: Session):
+    """Tests updating an existing product's name, price, and category."""
     initial_data = {
         "sku": "UPDATE-SKU-002",
-        "name": "Original Name",
-        "price": 50.00,
-        "vendor": "Original Vendor",
-        "category": "Original Category"
+        "name": "Old Mouse",
+        "price": Decimal("25.00"),
+        "vendor_name": "Peripherals Inc.",
+        "category_name": "Accessories"
     }
-    crud.create_product(db=db_session, product_data=initial_data)
+    crud.create_or_update_product(db=db_session, product_data=initial_data)
 
-    # 2. Prepare updated data with the same SKU
     updated_data = {
         "sku": "UPDATE-SKU-002",
-        "name": "Updated Name",
-        "price": 75.50
+        "name": "New Gaming Mouse",
+        "price": Decimal("75.50"),
+        "vendor_name": "Peripherals Inc.",
+        "category_name": "Gaming Gear"
     }
+    product = crud.create_or_update_product(db=db_session, product_data=updated_data)
 
-    # 3. Call the upsert function
-    updated_product = crud.create_or_update_product(db=db_session, product_data=updated_data)
+    assert product.name == "New Gaming Mouse"
+    assert product.price == Decimal("75.50")
+    assert product.vendor.name == "Peripherals Inc."
+    assert product.category.name == "Gaming Gear"
 
-    # 4. Assert that the product was updated
-    assert updated_product.name == "Updated Name"
-    assert updated_product.price == 75.50
-    # Check that unchanged fields remain the same
-    assert updated_product.vendor.name == "Original Vendor"
+
+def test_relations_are_reused_not_duplicated(db_session: Session):
+    """Tests that existing vendors and categories are reused."""
+    crud.create_or_update_product(db=db_session, product_data={
+        "sku": "SKU1", "name": "Product A", "price": 10,
+        "vendor_name": "MegaCorp", "category_name": "Gadgets"
+    })
+    crud.create_or_update_product(db=db_session, product_data={
+        "sku": "SKU2", "name": "Product B", "price": 20,
+        "vendor_name": "MegaCorp", "category_name": "Gadgets"
+    })
+
+    vendor_count = db_session.query(models.Vendor).count()
+    category_count = db_session.query(models.ProductCategory).count()
+
+    assert vendor_count == 1
+    assert category_count == 1

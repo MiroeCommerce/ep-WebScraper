@@ -1,94 +1,104 @@
+# File: app/crud.py
+"""
+Data Access Layer for creating and updating database records.
+
+This module contains the business logic for ingesting product data,
+including handling related entities like vendors and categories.
+"""
 from sqlalchemy.orm import Session
-from .models import product, vendor, category
-
-# === Vendor CRUD Functions ===
-
-def get_vendor_by_name(db: Session, name: str):
-    """Retrieves a vendor by its name."""
-    return db.query(vendor.Vendor).filter(vendor.Vendor.name == name).first()
-
-def create_vendor(db: Session, name: str):
-    """Creates a new vendor object and adds it to the session."""
-    db_vendor = vendor.Vendor(name=name)
-    db.add(db_vendor)
-    db.flush()
-    db.refresh(db_vendor)
-    return db_vendor
-
-def get_or_create_vendor(db: Session, name: str):
-    """Retrieves a vendor by name, creating it if it doesn't exist."""
-    db_vendor = get_vendor_by_name(db, name)
-    if not db_vendor:
-        db_vendor = create_vendor(db, name)
-    return db_vendor
+from . import models
 
 
-# === Category CRUD Functions ===
+def get_or_create_vendor(db: Session, vendor_name: str) -> models.Vendor:
+    """
+    Retrieves a vendor by name or creates it if it does not exist.
 
-def get_category_by_name(db: Session, name: str):
-    """Retrieves a category by its name."""
-    return db.query(category.Category).filter(category.Category.name == name).first()
+    Args:
+        db: The SQLAlchemy database session.
+        vendor_name: The name of the vendor to find or create.
 
-def create_category(db: Session, name: str):
-    """Creates a new category object and adds it to the session."""
-    db_category = category.Category(name=name)
-    db.add(db_category)
-    db.flush()
-    db.refresh(db_category)
-    return db_category
-
-def get_or_create_category(db: Session, name: str):
-    """Retrieves a category by name, creating it if it doesn't exist."""
-    db_category = get_category_by_name(db, name)
-    if not db_category:
-        db_category = create_category(db, name)
-    return db_category
+    Returns:
+        The existing or newly created Vendor object.
+    """
+    vendor = db.query(models.Vendor).filter(models.Vendor.name == vendor_name).first()
+    if not vendor:
+        vendor = models.Vendor(name=vendor_name)
+        db.add(vendor)
+        db.commit()
+        db.refresh(vendor)
+    return vendor
 
 
-# === Product CRUD Functions ===
+def get_or_create_category(db: Session, category_name: str) -> models.ProductCategory:
+    """
+    Retrieves a category by name or creates it if it does not exist.
 
-def get_product_by_sku(db: Session, sku: str):
-    """Retrieves a product by its SKU."""
-    return db.query(product.Product).filter(product.Product.sku == sku).first()
+    Args:
+        db: The SQLAlchemy database session.
+        category_name: The name of the category to find or create.
 
-def create_product(db: Session, product_data: dict):
-    """Creates a new product and its related vendor/category."""
-    db_vendor = get_or_create_vendor(db, name=product_data.get("vendor", "Unknown"))
-    db_category = get_or_create_category(db, name=product_data.get("category", "Uncategorized"))
+    Returns:
+        The existing or newly created ProductCategory object.
+    """
+    category = db.query(models.ProductCategory).filter(models.ProductCategory.name == category_name).first()
+    if not category:
+        slug = category_name.lower().replace(' ', '-')
+        category = models.ProductCategory(name=category_name, slug=slug)
+        db.add(category)
+        db.commit()
+        db.refresh(category)
+    return category
 
-    db_product = product.Product(
-        sku=product_data["sku"],
-        name=product_data["name"],
-        price=product_data["price"],
-        url=product_data.get("url"),
-        specifications=product_data.get("specifications"),
-        vendor_id=db_vendor.id,
-        category_id=db_category.id
-    )
-    db.add(db_product)
-    db.flush()
-    db.refresh(db_product)
-    return db_product
 
-def update_product(db: Session, db_product: product.Product, product_data: dict):
-    """Updates an existing product's information."""
-    for key, value in product_data.items():
-        setattr(db_product, key, value)
-    db.add(db_product)
-    db.flush()
-    db.refresh(db_product)
-    return db_product
-
-def create_or_update_product(db: Session, product_data: dict):
+def create_or_update_product(db: Session, product_data: dict) -> models.Product | None:
     """
     Creates a new product or updates an existing one based on SKU.
-    This is the main "upsert" function for the ingestion service.
+
+    This function performs an "upsert" operation. It processes a dictionary
+    of product data, handles the creation or retrieval of related vendors
+    and categories, and then creates or updates the product record.
+
+    Args:
+        db: The SQLAlchemy database session.
+        product_data: A dictionary containing product attributes, including
+            'sku', 'vendor_name', and 'category_name'.
+
+    Returns:
+        The created or updated Product object, or None if the SKU is missing.
     """
-    db_product = get_product_by_sku(db, sku=product_data["sku"])
+    sku = product_data.get("sku")
+    if not sku:
+        return None
+
+    vendor_name = product_data.get("vendor_name")
+    category_name = product_data.get("category_name")
+    if not vendor_name or not category_name:
+        return None
+
+    vendor = get_or_create_vendor(db, vendor_name)
+    category = get_or_create_category(db, category_name)
+
+    db_product = db.query(models.Product).filter(models.Product.sku == sku).first()
+
+    product_attributes = {
+        "name": product_data.get("name"),
+        "description": product_data.get("description"),
+        "price": product_data.get("price"),
+        "specs": product_data.get("specs"),
+        "status": product_data.get("status", "active"),
+    }
+
     if db_product:
-        # Product exists, so update it
-        return update_product(db, db_product, product_data)
+        for key, value in product_attributes.items():
+            if value is not None:
+                setattr(db_product, key, value)
+        db_product.vendor = vendor
+        db_product.category = category
     else:
-        # Product does not exist, so create it
-        return create_product(db, product_data)
+        db_product = models.Product(**product_attributes, sku=sku, vendor=vendor, category=category)
+        db.add(db_product)
+
+    db.commit()
+    db.refresh(db_product)
+    return db_product
 

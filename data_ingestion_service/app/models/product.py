@@ -1,56 +1,55 @@
-"""Database model for products.
+# File: app/models/product.py
+"""SQLAlchemy ORM model for the 'products' table."""
 
-This module defines the `Product` model using SQLAlchemy. It represents a
-product in the database, storing core information like SKU, name, and price,
-as well as detailed specifications in a JSONB field. It also defines the
-many-to-one relationships with the `Vendor` and `Category` models.
-"""
-
-from sqlalchemy import Column, Integer, String, Float, ForeignKey
+import uuid
+from sqlalchemy import (
+    Column, String, Text, DateTime, ForeignKey, Numeric, Uuid, func, Integer, JSON
+)
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import JSONB
+
+# No longer need the postgresql-specific JSONB
+# from sqlalchemy.dialects.postgresql import JSONB
+
 from ..core.database import Base
 
 
 class Product(Base):
-    """Represents a product's data in the 'products' table.
+    """
+    Represents a product in the 'products' table.
 
-    This SQLAlchemy model includes all essential fields for a product, with
-    relationships established to vendors and categories. The `specifications`
-    field uses PostgreSQL's JSONB type for efficient storage and querying of
-    nested product attributes.
+    This is the central model that links to vendors and categories.
 
     Attributes:
-        id (int): The primary key for the product.
-        sku (str): The unique Stock Keeping Unit for the product. Indexed for
-            fast lookups.
-        name (str): The display name of the product. Indexed for searching.
-        price (float): The retail price of the product.
-        url (str): The URL to the product's page on the vendor's website.
-        specifications (dict): A JSONB field to store nested key-value pairs of
-            product specifications (e.g., RAM, CPU, screen size).
-        vendor_id (int): Foreign key linking to the 'vendors' table.
-        vendor (relationship): SQLAlchemy relationship to the parent `Vendor`
-            object.
-        category_id (int): Foreign key linking to the 'categories' table.
-        category (relationship): SQLAlchemy relationship to the parent
-            `Category` object.
+        product_id: The primary key for the product.
+        name: The name of the product.
+        sku: The unique stock keeping unit for the product.
+        description: A text description of the product.
+        status: The current status of the product (e.g., 'active').
+        price: The price of the product.
+        specs: A flexible JSON field for product specifications.
+        vendor_id: Foreign key linking to the 'vendors' table.
+        category_id: Foreign key linking to the 'product_categories' table.
     """
-    __tablename__ = "products"
+    __tablename__ = 'products'
 
-    id = Column(Integer, primary_key=True, index=True)
-    sku = Column(String, unique=True, index=True, nullable=False)
-    name = Column(String, index=True)
-    price = Column(Float, nullable=False)
-    url = Column(String)
+    product_id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(255), nullable=False, index=True)
+    sku = Column(String(100), unique=True, nullable=False, index=True)
+    description = Column(Text)
+    status = Column(String(50), default='active')
+    price = Column(Numeric(10, 2), nullable=False, default=0.00)
 
-    # Use JSONB for efficient storage and querying of nested specifications.
-    specifications = Column(JSONB)
+    # Use the generic JSON type which works with both PostgreSQL and SQLite
+    specs = Column(JSON)
 
-    # Define the many-to-one relationship to the Vendor model.
-    vendor_id = Column(Integer, ForeignKey("vendors.id"))
+    # Foreign keys linking to the other tables
+    vendor_id = Column(Integer, ForeignKey('vendors.vendor_id'), nullable=False)
+    category_id = Column(Uuid(as_uuid=True), ForeignKey('product_categories.category_id'), nullable=False)
+
+    # Relationships that link to the Vendor and ProductCategory ORM classes
     vendor = relationship("Vendor", back_populates="products")
+    category = relationship("ProductCategory", back_populates="products")
 
-    # Define the many-to-one relationship to the Category model.
-    category_id = Column(Integer, ForeignKey("categories.id"))
-    category = relationship("Category", back_populates="products")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+

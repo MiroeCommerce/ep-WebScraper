@@ -1,35 +1,37 @@
-"""Database model for product vendors.
+"""SQLAlchemy ORM model for the 'vendors' table."""
 
-This module defines the `Vendor` model, which represents a product vendor or
-brand in the database (e.g., 'Intel', 'MugLife'). It uses SQLAlchemy to map
-the class to the 'vendors' database table and defines its relationship to the
-Product model.
-"""
-
-from sqlalchemy import Column, Integer, String
+import datetime
+from sqlalchemy import (
+    Column, Integer, String, Date, DateTime, func
+)
 from sqlalchemy.orm import relationship
+
 from ..core.database import Base
 
 
 class Vendor(Base):
-    """Represents a product vendor in the database.
-
-    This SQLAlchemy model maps to the 'vendors' table. Each vendor has a
-    unique name to prevent duplicates and is linked to the products
-    associated with it.
+    """
+    Represents a product vendor in the 'vendors' table.
 
     Attributes:
-        id (int): The primary key for the vendor.
-        name (str): The unique name of the vendor (e.g., "Intel").
-        products (relationship): A SQLAlchemy relationship providing access to
-            all Product objects associated with this vendor.
+        vendor_id: The primary key for the vendor.
+        name: The name of the vendor (unique).
+        registration_date: The date the vendor was registered.
+        status: The current status of the vendor (e.g., 'active').
+        category_id: An integer field for legacy categorization.
+        created_at: Timestamp of when the record was created.
+        updated_at: Timestamp of the last update to the record.
     """
-    __tablename__ = "vendors"
+    __tablename__ = 'vendors'
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True, nullable=False)
+    vendor_id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False, unique=True, index=True)
+    registration_date = Column(Date, nullable=False, default=datetime.date.today)
+    status = Column(String(50), default='active')
+    category_id = Column(Integer)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Establish a one-to-many relationship with the Product model.
-    # The 'back_populates' argument ensures that this relationship is mirrored
-    # on the Product model under the 'vendor' attribute.
+    # The relationship to 'Product' is defined using a string.
+    # This prevents a circular import error since Product will import Vendor.
     products = relationship("Product", back_populates="vendor")
