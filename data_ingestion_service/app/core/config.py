@@ -13,7 +13,7 @@ class Settings(BaseSettings):
         DATABASE_URL: The connection string for the PostgreSQL database.
         KAFKA_BOOTSTRAP_SERVERS: The connection string for the Kafka cluster.
     """
-    DATABASE_URL: str = "postgresql://admin:admin123@localhost:5432/e_database"
+    DATABASE_URL: str = "postgresql+asyncpg://admin:admin123@localhost:5432/e_database"
 
     # Add this line to match the variable in your .env file
 
