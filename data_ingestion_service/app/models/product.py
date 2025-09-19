@@ -82,7 +82,7 @@ class ProductVariant(Base):
         ForeignKey("products.product_id", ondelete="CASCADE"),
         nullable=False,
     )
-    sku = Column(String(100), nullable=False)
+    sku = Column(String(100), nullable=False, unique=True)
     variant_name = Column(String(225))
     price = Column(Numeric(10, 2), nullable=False)
     stock_quantity = Column(Integer, default=0)

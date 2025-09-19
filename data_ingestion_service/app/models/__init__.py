@@ -8,3 +8,4 @@ This allows other modules to use `from app import models` and then access
 # from .vendor import Vendor
 # from .category import ProductCategory
 from .product import Product, ProductAttribute, ProductAttributeValue, ProductVariant
+from .category import ProductCategory

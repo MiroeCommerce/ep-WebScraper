@@ -47,7 +47,7 @@ class BaseProduct(BaseModel):
     description: Optional[str] = Field(
         None, min_length=1, description="Description of the product."
     )
-    availability: Availability
+    availability: Optional[Availability]
 
     release_date: Optional[date] = Field(None, description="Product release date.")
 
