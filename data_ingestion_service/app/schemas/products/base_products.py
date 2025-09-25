@@ -55,7 +55,7 @@ class BaseProduct(BaseModel):
 
     vendor: Optional[str] = Field(None, min_length=1, description="Product vendor.")
 
-    url: HttpUrl = Field(..., description="URL link of the product.")
+    url: Optional[HttpUrl] = Field(None, description="URL link of the product.")
 
     @field_validator("sku", mode="after")
     @classmethod
@@ -102,7 +102,6 @@ class GPU(BaseModel):
     Includes GPU model name, VRAM size, and manufacture
     """
 
-    model: str = Field(..., min_length=1, description="GPU model name.")
     vram_gb: Optional[int] = Field(None, gt=0, description="Video RAM in GB.")
     manufacturer: Optional[str] = Field(
         None, min_length=1, description="e.g., NVIDIA, AMD, Intel."

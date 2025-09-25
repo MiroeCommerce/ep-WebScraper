@@ -6,7 +6,7 @@ import asyncio
 from aiokafka import AIOKafkaConsumer
 
 from data_ingestion_service.app.core.config import settings
-from data_ingestion_service.app.core.logger import logger, setup_logger
+from data_ingestion_service.app.core.logger import logger
 from data_ingestion_service.app.schemas.products import (
     Desktop,
     Keyboard,
@@ -20,22 +20,28 @@ from data_ingestion_service.app.schemas.products import (
 from data_ingestion_service.app.core.database import Database
 from data_ingestion_service.app.crud import ProductCRUD, CategoryCRUD
 
-# Need to include the SQLAlchemy models
-PRODUCT_TYPE: Dict[str, Type[Any]] = {
-    "products-desktop": Desktop,
-    "laptop": Laptop,
-    "products-monitor": Monitor,
-    "mouse": Mouse,
-    "products-keyboard": Keyboard,
-    "products-processor": Processor,
-    "products-table": Tablet,
-}
 
-# May need to move the setup_logger to main.py
-setup_logger()
+PRODUCT_TYPE: Dict[str, Type[Any]] = {
+    "desktop": Desktop,
+    "laptop": Laptop,
+    "monitor": Monitor,
+    "mouse": Mouse,
+    "keyboard": Keyboard,
+    "processor": Processor,
+    "tablet": Tablet,
+}
 
 
 class ProductConsumer:
+    """
+    Kafka consumer responsible for ingesting product data.
+
+    The consumer listens to product-related topics published by the
+    web scraper service, validates the incoming messages against
+    Pydantic models, and persists valid product data into PostgreSQL
+    using SQLAlchemy.
+    """
+
     def __init__(self):
         self.topic_prefix = settings.KAFKA_TOPIC_PREFIX
         self.bootstrap_servers = settings.KAFKA_BOOTSTRAP_SERVERS
@@ -44,6 +50,12 @@ class ProductConsumer:
         self.db = Database()
 
     async def start(self):
+        """
+        Start the Kafka consumer and subscribe to product topics.
+
+        Subscribes to all topics matching the prefix defined in settings,
+        initializes the consumer, and logs the subscription details.
+        """
         self._consumer = AIOKafkaConsumer(
             bootstrap_servers=self.bootstrap_servers,
             group_id=self.group_id,
@@ -57,6 +69,11 @@ class ProductConsumer:
         logger.info(f"Kafka Consumer started for topics {list(subscribed)}")
 
     async def stop(self):
+        """
+        Stop the Kafka consumer gracefully.
+
+        Ensures the consumer shuts down cleanly and logs the shutdown event.
+        """
         if self._consumer:
             await self._consumer.stop()
 
@@ -69,16 +86,30 @@ class ProductConsumer:
         product: Any,
         max_attempts: int = 3,
     ):
+        """
+        Persist product data to the database with retry logic.
+
+        Args:
+            product_crud (ProductCRUD): CRUD handler for product persistence.
+            category_crud (CategoryCRUD): CRUD handler for category persistence.
+            product (Any): Validated product data (Pydantic model).
+            max_attempts (int): Maximum retry attempts in case of failure.
+
+        Raises:
+            Exception: Reraises the last exception if all retry attempts fail.
+        """
         attempt = 0
         while attempt <= max_attempts:
             try:
                 await category_crud.get_or_create_category(product.product_type)
                 result = await product_crud.process_product(product_data=product)
 
-                if result == 'created':
-                    logger.info(f'Product {product.product_name} was added to the database.')
-                elif result == 'updated':
-                    logger.info(f'Product {product.product_name} was updated.')
+                if result == "created":
+                    logger.info(
+                        f"Product {product.product_name} was added to the database."
+                    )
+                elif result == "updated":
+                    logger.info(f"Product {product.product_name} was updated.")
                 return
             except Exception as e:
                 attempt += 1
@@ -89,6 +120,21 @@ class ProductConsumer:
                     raise
 
     async def process_message(self, msg: bytes, topic: str):
+        """
+        Process a single Kafka message.
+
+        - Determines the product type from the topic.
+        - Validates the incoming message with the appropriate Pydantic model.
+        - Persists the product data to the database.
+
+        Args:
+            msg (bytes): The Kafka message payload.
+            topic (str): The topic name the message was consumed from.
+
+        Logs:
+            - Warnings if no Pydantic model exists for the topic.
+            - Errors if validation or persistence fails.
+        """
         product_name = topic.replace(f"{self.topic_prefix}-", "")
         product_model = PRODUCT_TYPE.get(product_name)
         if product_model is None:
@@ -115,6 +161,23 @@ class ProductConsumer:
             return
 
     async def consume(self, commit_interval: int = 10):
+        """
+        Main consumption loop for Kafka messages.
+
+        Continuously consumes messages, processes them, and commits
+        offsets in batches to ensure reliability.
+
+        Args:
+            commit_interval (int): Number of successfully processed
+                messages before committing offsets.
+
+        Raises:
+            RuntimeError: If the consumer has not been started.
+
+        Logs:
+            - Errors during message processing.
+            - Cancellation or shutdown events.
+        """
         if not self._consumer:
             raise RuntimeError("Kafka consumer not started.")
         processed_count = 0

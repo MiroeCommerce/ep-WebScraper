@@ -21,19 +21,48 @@ from .models import (
     ProductVariant,
 )
 
+from data_ingestion_service.app.core.logger import logger
+
 
 class ProductCRUD:
+    """
+    CRUD operations for managing products, product variant and product attributes.
+
+    Provides methods for retrieving, creating, and updating product data
+    as well as handling associated variants and attributes.
+
+    """
+
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_product(self, product_sku):
+    async def get_product(self, product_sku) -> Product:
+        """
+        Retrieve a product by SKU.
+
+        Args:
+            product_sku (str): The product's unique SKU.
+
+        Returns:
+            Product | None: The product instance if found, otherwise None.
+        """
         stmt = select(Product).where(Product.sku == product_sku)
         result = await self.session.execute(stmt)
         product = result.scalar_one_or_none()
 
         return product
 
-    async def update_product(self, product_data, product):
+    async def update_product(self, product_data, product) -> Product:
+        """
+        Update an existing product and its variants.
+
+        Args:
+            product_data: Pydantic model containing validated product data.
+            product (Product): Existing product instance to update.
+
+        Returns:
+            Product: The updated product instance.
+        """
         product.name = product_data.product_name
         product.description = product_data.description
 
@@ -43,7 +72,17 @@ class ProductCRUD:
         await self.session.refresh(product)
         return product
 
-    async def get_or_create_variant(self, product_data, product):
+    async def get_or_create_variant(self, product_data, product) -> ProductVariant:
+        """
+        Retrieve or create a product variant for a given product.
+
+        Args:
+            product_data: Pydantic model containing validated product data.
+            product (Product): The parent product instance.
+
+        Returns:
+            ProductVariant: The existing or newly created product variant.
+        """
         stmt = select(ProductVariant).where(ProductVariant.sku == product_data.sku)
         result = await self.session.execute(stmt)
         variant = result.scalar_one_or_none()
@@ -85,7 +124,17 @@ class ProductCRUD:
 
         return variant
 
-    async def get_or_create_attribute(self, key, value):
+    async def get_or_create_attribute(self, key, value) -> ProductAttribute:
+        """
+        Retrieve or create a product attribute.
+
+        Args:
+            key (str): Attribute name.
+            value (Any): Attribute value, used to infer data type.
+
+        Returns:
+            ProductAttribute: The existing or newly created attribute.
+        """
         normalized_code = slugify(key).replace("-", "_")
 
         stmt = select(ProductAttribute).where(ProductAttribute.code == normalized_code)
@@ -104,7 +153,20 @@ class ProductCRUD:
 
         return new_attribute
 
-    async def update_or_create_attribute_value(self, value, attribute, variant):
+    async def update_or_create_attribute_value(
+        self, value, attribute, variant
+    ) -> ProductAttributeValue:
+        """
+        Create or update a product attribute value for a specific variant.
+
+        Args:
+            value (Any): The attribute's value.
+            attribute (ProductAttribute): The related attribute definition.
+            variant (ProductVariant): The product variant.
+
+        Returns:
+            ProductAttributeValue: The created or updated attribute value.
+        """
         stmt = (
             select(ProductAttributeValue)
             .where(ProductAttributeValue.variant_id == variant.variant_id)
@@ -138,6 +200,19 @@ class ProductCRUD:
             return attribute_value
 
     async def create_product(self, product_data) -> Product:
+        """
+        Create a new product with variants and attributes.
+
+        Args:
+            product_data: Pydantic model containing validated product data.
+
+        Returns:
+            Product: The newly created product instance.
+
+        Raises:
+            IntegrityError: If a uniqueness constraint is violated.
+            SQLAlchemyError: For other database errors.
+        """
         try:
             product_name = product_data.product_name
             product_sku = product_data.sku
@@ -160,14 +235,24 @@ class ProductCRUD:
 
         except IntegrityError as e:
             await self.session.rollback()
-            # logger.error(f'Integrity error : {e}')
+            logger.error(f"Integrity error : {e}")
             raise e
         except SQLAlchemyError as e:
             await self.session.rollback()
-            # logger.error(f'Error : {e}')
+            logger.error(f"Error : {e}")
             raise e
 
     async def process_product(self, product_data):
+        """
+         Create or update a product based on existence.
+
+        Args:
+            product_data: Pydantic model containing validated product data.
+
+        Returns:
+            str: "updated" if the product was updated,
+                 "created" if a new product was created.
+        """
         product = await self.get_product(product_data.sku)
 
         if product:
@@ -180,6 +265,9 @@ class ProductCRUD:
 
 class CategoryCRUD:
     def __init__(self, session: AsyncSession):
+        """
+        CRUD operations for managing product categories.
+        """
         self.session = session
 
     async def get_or_create_category(
@@ -211,30 +299,3 @@ class CategoryCRUD:
             await self.session.refresh(new_category)
             return new_category
         return category
-
-
-# async def get_all_products(db):
-#     async with db.session_scope() as session:
-#         stmt = select(Product)  # Select all rows from Product
-#         result = await session.scalars(stmt)
-#         return result.all()  # Returns a list (empty if no rows)
-
-
-# def get_or_create_vendor(db: Session, vendor_name: str) -> models.Vendor:
-#     """
-#     Retrieves a vendor by name or creates it if it does not exist.
-
-#     Args:
-#         db: The SQLAlchemy database session.
-#         vendor_name: The name of the vendor to find or create.
-
-#     Returns:
-#         The existing or newly created Vendor object.
-#     """
-#     vendor = db.query(models.Vendor).filter(models.Vendor.name == vendor_name).first()
-#     if not vendor:
-#         vendor = models.Vendor(name=vendor_name)
-#         db.add(vendor)
-#         db.commit()
-#         db.refresh(vendor)
-#     return vendor
