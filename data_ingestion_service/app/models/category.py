@@ -39,5 +39,6 @@ class ProductCategory(Base):
     # Self-referencing relationship for parent/child categories.
     parent = relationship("ProductCategory", remote_side=[category_id])
 
+    # Commenting out for now, no direct connection between the tables
     # Relationship to 'Product' is defined using a string to prevent circular imports.
-    products = relationship("Product", back_populates="category")
+    # products = relationship("Product", back_populates="category")
